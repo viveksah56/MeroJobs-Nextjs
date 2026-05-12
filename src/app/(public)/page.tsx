@@ -20,8 +20,8 @@ export default function Home() {
 
     const filtered = jobResponse.filter((job) => {
         if (filters.jobTypes.length > 0 && !filters.jobTypes.includes(job.employmentType)) return false
-        if (filters.workTypes.length > 0 && !filters.workTypes.includes(job.workType)) return false
-        return !(filters.experience.length > 0 && !filters.experience.includes(job.experienceLevel));
+        if (filters.workTypes.length > 0 && job.workType && !filters.workTypes.includes(job.workType)) return false
+        return !(filters.experience.length > 0 && job.experienceLevel && !filters.experience.includes(job.experienceLevel));
 
     })
 

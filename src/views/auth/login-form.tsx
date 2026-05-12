@@ -1,40 +1,33 @@
-"use client";
+'use client';
 
-import {startTransition, useActionState, useCallback} from "react";
-import {useForm} from "react-hook-form";
-import {zodResolver} from "@hookform/resolvers/zod";
-import {z} from "zod";
-import Link from "next/link";
-import {useRouter} from "next/navigation";
-import {AlertCircle, ArrowRight, Loader2} from "lucide-react";
+import { useCallback } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import Link from 'next/link';
+import { AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
 
-import {Button} from "@/components/ui/button";
-import {Checkbox} from "@/components/ui/checkbox";
-import {Label} from "@/components/ui/label";
-import {Alert, AlertDescription} from "@/components/ui/alert";
-import {PasswordInputField} from "@/components/form-field/password-input";
-import {TextInputField} from "@/components/form-field/text-input";
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { PasswordInputField } from '@/components/form-field/password-input';
+import { TextInputField } from '@/components/form-field/text-input';
+import { useAuth } from '@/hooks/use-auth';
 
 const loginSchema = z.object({
-    email: z
-        .email("Enter a valid email address")
-        .min(1, "Email is required"),
-
-    password: z
-        .string()
-        .min(1, "Password is required")
-        .min(8, "Password must be at least 8 characters"),
-    remember: z.boolean().optional(),
+  email: z
+    .string()
+    .email('Enter a valid email address')
+    .min(1, 'Email is required'),
+  password: z
+    .string()
+    .min(1, 'Password is required')
+    .min(8, 'Password must be at least 8 characters'),
+  remember: z.boolean().optional(),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
-
-type LoginState = {
-    success: boolean;
-    error: string | null;
-};
-
-const INITIAL_STATE: LoginState = {success: false, error: null};
 
 function NexusLogo({className}: { className?: string }) {
     return (
@@ -83,189 +76,171 @@ function GoogleIcon() {
 }
 
 export function LoginForm() {
-    const router = useRouter();
+  const { login, isLoggingIn, loginError } = useAuth();
 
-    const loginAction = useCallback(
-        async (_prev: LoginState, data: LoginFormData): Promise<LoginState> => {
-            await new Promise((r) => setTimeout(r, 1000));
-            if (data.email === "demo@nexus.com" && data.password === "password123") {
-                router.push("/dashboard");
-                return {success: true, error: null};
-            }
-            return {success: false, error: "Invalid email or password. Please try again."};
-        },
-        [router]
-    );
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '', remember: false },
+    mode: 'onTouched',
+  });
 
-    const [state, formAction, isPending] = useActionState(loginAction, INITIAL_STATE);
+  const rememberValue = watch('remember');
 
-    const {
-        register,
-        handleSubmit,
-        setValue,
-        watch,
-        formState: {errors},
-    } = useForm<LoginFormData>({
-        resolver: zodResolver(loginSchema),
-        defaultValues: {email: "", password: "", remember: false},
-        mode: "onTouched",
-    });
+  const onSubmit = useCallback(
+    (data: LoginFormData) => {
+      login(data);
+    },
+    [login]
+  );
 
-    const rememberValue = watch("remember");
+  return (
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-background px-4 py-10 sm:py-12">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[-10%] top-[-20%] h-[400px] w-[400px] rounded-full bg-blue-500/10 blur-[100px] sm:h-[600px] sm:w-[600px]"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-[-10%] left-[-5%] h-[300px] w-[300px] rounded-full bg-indigo-500/8 blur-[100px] sm:h-[450px] sm:w-[450px]"
+      />
 
-    const onSubmit = useCallback(
-        (data: LoginFormData) => {
-            startTransition(() => {
-                formAction(data);
-            });
-        },
-        [formAction]
-    );
-
-    return (
-        <div
-            className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-background px-4 py-10 sm:py-12">
-            <div
-                aria-hidden="true"
-                className="pointer-events-none absolute right-[-10%] top-[-20%] h-[400px] w-[400px] rounded-full bg-blue-500/10 blur-[100px] sm:h-[600px] sm:w-[600px]"
-            />
-            <div
-                aria-hidden="true"
-                className="pointer-events-none absolute bottom-[-10%] left-[-5%] h-[300px] w-[300px] rounded-full bg-indigo-500/8 blur-[100px] sm:h-[450px] sm:w-[450px]"
-            />
-
-            <div
-                className="relative w-full max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-500 sm:max-w-[420px]">
-                <div
-                    className="rounded-2xl border border-border bg-card p-6 shadow-xl shadow-black/5 dark:shadow-black/20 sm:p-8 md:p-10">
-                    <div
-                        className="mb-7 space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-100 sm:mb-8 sm:space-y-5">
-                        <div className="flex items-center gap-2.5">
-                            <NexusLogo className="h-8 w-8 text-blue-600 dark:text-blue-500 sm:h-9 sm:w-9"/>
-                            <span className="text-base font-bold tracking-tight text-foreground sm:text-[1.0625rem]">
-                Nexus
+      <div className="relative w-full max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-500 sm:max-w-[420px]">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-xl shadow-black/5 dark:shadow-black/20 sm:p-8 md:p-10">
+          <div className="mb-7 space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-100 sm:mb-8 sm:space-y-5">
+            <div className="flex items-center gap-2.5">
+              <NexusLogo className="h-8 w-8 text-blue-600 dark:text-blue-500 sm:h-9 sm:w-9" />
+              <span className="text-base font-bold tracking-tight text-foreground sm:text-[1.0625rem]">
+                Mero Jobs
               </span>
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-                                Welcome back
-                            </h1>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Sign in to continue to your workspace
-                            </p>
-                        </div>
-                    </div>
-
-                    <form
-                        onSubmit={handleSubmit(onSubmit)}
-                        noValidate
-                        aria-label="Sign in form"
-                        className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-150"
-                    >
-                        {state.error && (
-                            <Alert variant="destructive" role="alert" aria-live="assertive" aria-atomic="true">
-                                <AlertCircle className="h-4 w-4"/>
-                                <AlertDescription>{state.error}</AlertDescription>
-                            </Alert>
-                        )}
-
-                        <TextInputField
-                            type="email"
-                            label="Email"
-                            placeholder="your@email.com"
-                            error={errors.email?.message}
-                            disabled={isPending}
-                            autoComplete="email"
-                            required
-                            {...register("email")}
-                        />
-
-                        <PasswordInputField
-                            label="Password"
-                            placeholder="Your password"
-                            error={errors.password?.message}
-                            disabled={isPending}
-                            autoComplete="current-password"
-                            required
-                            {...register("password")}
-                        />
-
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                                <Checkbox
-                                    id="remember"
-                                    checked={!!rememberValue}
-                                    onCheckedChange={(checked) => setValue("remember", !!checked)}
-                                    disabled={isPending}
-                                    aria-label="Remember me for 30 days"
-                                />
-                                <Label
-                                    htmlFor="remember"
-                                    className="cursor-pointer select-none text-[0.8125rem] text-muted-foreground"
-                                >
-                                    Remember me
-                                </Label>
-                            </div>
-                            <Link
-                                href="/forgot-password"
-                                className="text-[0.8125rem] font-medium text-blue-600 transition-opacity hover:opacity-75 focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-blue-500"
-                            >
-                                Forgot password?
-                            </Link>
-                        </div>
-
-                        <Button
-                            type="submit"
-                            disabled={isPending}
-                            aria-busy={isPending}
-                            aria-label={isPending ? "Signing in, please wait" : "Sign in to your account"}
-                            className="mt-1 h-10 w-full rounded-xl text-sm font-semibold tracking-tight sm:h-11 sm:text-[0.9375rem]"
-                        >
-                            {isPending ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true"/>
-                                    Signing in…
-                                </>
-                            ) : (
-                                <>
-                                    Sign in
-                                    <ArrowRight className="h-4 w-4" aria-hidden="true"/>
-                                </>
-                            )}
-                        </Button>
-
-                        <div
-                            className="relative flex items-center gap-3 text-xs text-muted-foreground"
-                            aria-hidden="true"
-                        >
-                            <span className="flex-1 border-t border-border"/>
-                            or
-                            <span className="flex-1 border-t border-border"/>
-                        </div>
-
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={isPending}
-                            aria-label="Continue with Google SSO"
-                            className="h-[42px] w-full rounded-xl text-sm font-medium"
-                        >
-                            <GoogleIcon/>
-                            Continue with Google
-                        </Button>
-                    </form>
-
-                    <p className="mt-6 text-center text-[0.8125rem] text-muted-foreground animate-in fade-in duration-500 delay-300">
-                        Don&apos;t have an account?{" "}
-                        <Link
-                            href="/register"
-                            className="font-medium text-blue-600 transition-opacity hover:opacity-75 focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-blue-500"
-                        >
-                            Request access
-                        </Link>
-                    </p>
-                </div>
             </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                Welcome back
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Sign in to continue to your workspace
+              </p>
+            </div>
+          </div>
+
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            noValidate
+            aria-label="Sign in form"
+            className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-150"
+          >
+            {loginError && (
+              <Alert variant="destructive" role="alert" aria-live="assertive" aria-atomic="true">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {loginError instanceof Error ? loginError.message : 'Invalid email or password'}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <TextInputField
+              type="email"
+              label="Email"
+              placeholder="your@email.com"
+              error={errors.email?.message}
+              disabled={isLoggingIn}
+              autoComplete="email"
+              required
+              {...register('email')}
+            />
+
+            <PasswordInputField
+              label="Password"
+              placeholder="Your password"
+              error={errors.password?.message}
+              disabled={isLoggingIn}
+              autoComplete="current-password"
+              required
+              {...register('password')}
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="remember"
+                  checked={!!rememberValue}
+                  onCheckedChange={(checked) => setValue('remember', !!checked)}
+                  disabled={isLoggingIn}
+                  aria-label="Remember me for 30 days"
+                />
+                <Label
+                  htmlFor="remember"
+                  className="cursor-pointer select-none text-[0.8125rem] text-muted-foreground"
+                >
+                  Remember me
+                </Label>
+              </div>
+              <Link
+                href="/forgot-password"
+                className="text-[0.8125rem] font-medium text-blue-600 transition-opacity hover:opacity-75 focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-blue-500"
+              >
+                Forgot password?
+              </Link>
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isLoggingIn}
+              aria-busy={isLoggingIn}
+              aria-label={isLoggingIn ? 'Signing in, please wait' : 'Sign in to your account'}
+              className="mt-1 h-10 w-full rounded-xl text-sm font-semibold tracking-tight sm:h-11 sm:text-[0.9375rem]"
+            >
+              {isLoggingIn ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  Signing in…
+                </>
+              ) : (
+                <>
+                  Sign in
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </>
+              )}
+            </Button>
+
+            <div
+              className="relative flex items-center gap-3 text-xs text-muted-foreground"
+              aria-hidden="true"
+            >
+              <span className="flex-1 border-t border-border" />
+              or
+              <span className="flex-1 border-t border-border" />
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isLoggingIn}
+              aria-label="Continue with Google SSO"
+              className="h-[42px] w-full rounded-xl text-sm font-medium"
+            >
+              <GoogleIcon />
+              Continue with Google
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-[0.8125rem] text-muted-foreground animate-in fade-in duration-500 delay-300">
+            Don&apos;t have an account?{' '}
+            <Link
+              href="/register"
+              className="font-medium text-blue-600 transition-opacity hover:opacity-75 focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-blue-500"
+            >
+              Request access
+            </Link>
+          </p>
         </div>
-    );
+      </div>
+    </div>
+  );
 }

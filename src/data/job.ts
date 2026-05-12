@@ -5,6 +5,8 @@ export interface Job {
     companyLogo: string
     companyVerified?: boolean
     employmentType: string
+    workType?: string
+    experienceLevel?: string
     location: string
     description: string
     salaryMin: number

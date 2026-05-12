@@ -23,12 +23,12 @@ export function AutocompleteInput({
   showTrigger?: boolean;
   showClear?: boolean;
   startAddon?: React.ReactNode;
-  size?: "sm" | "default" | "lg" | number;
+  size?: "sm" | "default" | "lg";
   ref?: React.Ref<HTMLInputElement>;
   triggerProps?: AutocompletePrimitive.Trigger.Props;
   clearProps?: AutocompletePrimitive.Clear.Props;
 }): React.ReactElement {
-  const sizeValue = (size ?? "default") as "sm" | "default" | "lg" | number;
+  const sizeValue: "sm" | "default" | "lg" = size ?? "default";
 
   return (
     <AutocompletePrimitive.InputGroup
@@ -54,7 +54,7 @@ export function AutocompleteInput({
           className,
         )}
         data-slot="autocomplete-input"
-        render={<Input nativeInput size={sizeValue} />}
+        render={<Input />}
         {...props}
       />
       {showTrigger && (
@@ -236,7 +236,7 @@ export function AutocompleteList({
   ...props
 }: AutocompletePrimitive.List.Props): React.ReactElement {
   return (
-    <ScrollArea scrollbarGutter scrollFade>
+    <ScrollArea>
       <AutocompletePrimitive.List
         className={cn(
           "not-empty:scroll-py-1 not-empty:p-1 in-data-has-overflow-y:pe-3",
