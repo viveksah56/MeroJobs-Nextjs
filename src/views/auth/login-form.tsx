@@ -1,12 +1,12 @@
 "use client";
 
-import {startTransition, useActionState, useCallback} from "react";
+import {useCallback, useEffect} from "react";
 import {useForm} from "react-hook-form";
 import {zodResolver} from "@hookform/resolvers/zod";
 import {z} from "zod";
 import Link from "next/link";
-import {useRouter} from "next/navigation";
 import {AlertCircle, ArrowRight, Loader2} from "lucide-react";
+import {AxiosError} from "axios";
 
 import {Button} from "@/components/ui/button";
 import {Checkbox} from "@/components/ui/checkbox";
@@ -14,6 +14,7 @@ import {Label} from "@/components/ui/label";
 import {Alert, AlertDescription} from "@/components/ui/alert";
 import {PasswordInputField} from "@/components/form-field/password-input";
 import {TextInputField} from "@/components/form-field/text-input";
+import {useAuth} from "@/hooks/useAuth";
 
 const loginSchema = z.object({
     email: z
@@ -29,14 +30,7 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-type LoginState = {
-    success: boolean;
-    error: string | null;
-};
-
-const INITIAL_STATE: LoginState = {success: false, error: null};
-
-function NexusLogo({className}: { className?: string }) {
+function MeroJobsLogo({className}: { className?: string }) {
     return (
         <svg
             className={className}
@@ -83,21 +77,7 @@ function GoogleIcon() {
 }
 
 export function LoginForm() {
-    const router = useRouter();
-
-    const loginAction = useCallback(
-        async (_prev: LoginState, data: LoginFormData): Promise<LoginState> => {
-            await new Promise((r) => setTimeout(r, 1000));
-            if (data.email === "demo@nexus.com" && data.password === "password123") {
-                router.push("/dashboard");
-                return {success: true, error: null};
-            }
-            return {success: false, error: "Invalid email or password. Please try again."};
-        },
-        [router]
-    );
-
-    const [state, formAction, isPending] = useActionState(loginAction, INITIAL_STATE);
+    const {login, isLoading, isHydrated, error} = useAuth();
 
     const {
         register,
@@ -114,13 +94,24 @@ export function LoginForm() {
     const rememberValue = watch("remember");
 
     const onSubmit = useCallback(
-        (data: LoginFormData) => {
-            startTransition(() => {
-                formAction(data);
-            });
+        async (data: LoginFormData) => {
+            try {
+                await login(data.email, data.password);
+            } catch (err) {
+                const axiosError = err as AxiosError<{ message: string }>;
+                console.error("Login error:", axiosError);
+            }
         },
-        [formAction]
+        [login]
     );
+
+    if (!isHydrated) {
+        return null;
+    }
+
+    const errorMessage = error
+        ? (error as AxiosError<{ message: string }>).response?.data?.message || "Invalid credentials. Please try again."
+        : null;
 
     return (
         <div
@@ -141,9 +132,9 @@ export function LoginForm() {
                     <div
                         className="mb-7 space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-100 sm:mb-8 sm:space-y-5">
                         <div className="flex items-center gap-2.5">
-                            <NexusLogo className="h-8 w-8 text-blue-600 dark:text-blue-500 sm:h-9 sm:w-9"/>
+                            <MeroJobsLogo className="h-8 w-8 text-blue-600 dark:text-blue-500 sm:h-9 sm:w-9"/>
                             <span className="text-base font-bold tracking-tight text-foreground sm:text-[1.0625rem]">
-                Nexus
+                Mero Jobs
               </span>
                         </div>
                         <div>
@@ -151,7 +142,7 @@ export function LoginForm() {
                                 Welcome back
                             </h1>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Sign in to continue to your workspace
+                                Sign in to continue to find your dream job
                             </p>
                         </div>
                     </div>
@@ -162,10 +153,10 @@ export function LoginForm() {
                         aria-label="Sign in form"
                         className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-150"
                     >
-                        {state.error && (
+                        {errorMessage && (
                             <Alert variant="destructive" role="alert" aria-live="assertive" aria-atomic="true">
                                 <AlertCircle className="h-4 w-4"/>
-                                <AlertDescription>{state.error}</AlertDescription>
+                                <AlertDescription>{errorMessage}</AlertDescription>
                             </Alert>
                         )}
 
@@ -174,7 +165,7 @@ export function LoginForm() {
                             label="Email"
                             placeholder="your@email.com"
                             error={errors.email?.message}
-                            disabled={isPending}
+                            disabled={isLoading}
                             autoComplete="email"
                             required
                             {...register("email")}
@@ -184,7 +175,7 @@ export function LoginForm() {
                             label="Password"
                             placeholder="Your password"
                             error={errors.password?.message}
-                            disabled={isPending}
+                            disabled={isLoading}
                             autoComplete="current-password"
                             required
                             {...register("password")}
@@ -196,7 +187,7 @@ export function LoginForm() {
                                     id="remember"
                                     checked={!!rememberValue}
                                     onCheckedChange={(checked) => setValue("remember", !!checked)}
-                                    disabled={isPending}
+                                    disabled={isLoading}
                                     aria-label="Remember me for 30 days"
                                 />
                                 <Label
@@ -216,12 +207,12 @@ export function LoginForm() {
 
                         <Button
                             type="submit"
-                            disabled={isPending}
-                            aria-busy={isPending}
-                            aria-label={isPending ? "Signing in, please wait" : "Sign in to your account"}
+                            disabled={isLoading}
+                            aria-busy={isLoading}
+                            aria-label={isLoading ? "Signing in, please wait" : "Sign in to your account"}
                             className="mt-1 h-10 w-full rounded-xl text-sm font-semibold tracking-tight sm:h-11 sm:text-[0.9375rem]"
                         >
-                            {isPending ? (
+                            {isLoading ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true"/>
                                     Signing in…
@@ -246,7 +237,7 @@ export function LoginForm() {
                         <Button
                             type="button"
                             variant="outline"
-                            disabled={isPending}
+                            disabled={isLoading}
                             aria-label="Continue with Google SSO"
                             className="h-[42px] w-full rounded-xl text-sm font-medium"
                         >

@@ -4,6 +4,7 @@ import "./globals.css";
 
 import {cn} from "@/lib/utils";
 import {TooltipProvider} from "@/components/ui/tooltip";
+import {QueryProvider} from "@/provider/query-provider";
 import React from "react";
 
 const geistMono = Geist_Mono({subsets: ['latin'], variable: '--font-mono'});
@@ -109,7 +110,9 @@ export default function RootLayout({
             fontFamily: "var(--font-sans), sans-serif",
           }}
       >
-      <TooltipProvider>{children}</TooltipProvider>
+      <QueryProvider>
+        <TooltipProvider>{children}</TooltipProvider>
+      </QueryProvider>
       </body>
       </html>
   );
