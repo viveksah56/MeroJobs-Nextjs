@@ -17,10 +17,8 @@ export function isTokenExpired(token: string): boolean {
 
 export function getAuthUser(token: string | null | undefined): AuthUser | null {
     if (!token) return null;
-
     const payload = decodeJwt(token);
     if (!payload || Date.now() >= payload.exp * 1000) return null;
-
     return {
         email: payload.sub,
         userId: payload.userId,
@@ -50,7 +48,36 @@ export function hasAuthority(token: string, authority: Authority): boolean {
     return getAuthUser(token)?.authorities.includes(authority) ?? false;
 }
 
+const TOKEN_COOKIE = "access_token";
+
+function parseCookies(): Record<string, string> {
+    if (typeof document === "undefined") return {};
+    return Object.fromEntries(
+        document.cookie
+            .split("; ")
+            .filter(Boolean)
+            .map((pair) => {
+                const idx = pair.indexOf("=");
+                return [pair.slice(0, idx), decodeURIComponent(pair.slice(idx + 1))];
+            })
+    );
+}
+
 export function getStoredToken(): string | null {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem("access_token");
+    if (typeof document === "undefined") return null;
+    return parseCookies()[TOKEN_COOKIE] ?? null;
+}
+
+export function setStoredToken(token: string, maxAgeSeconds = 3600): void {
+    if (typeof document === "undefined") return;
+    const payload = decodeJwt(token);
+    const age = payload
+        ? Math.floor((payload.exp * 1000 - Date.now()) / 1000)
+        : maxAgeSeconds;
+    document.cookie = `${TOKEN_COOKIE}=${encodeURIComponent(token)}; max-age=${age}; path=/; SameSite=Strict`;
+}
+
+export function clearStoredToken(): void {
+    if (typeof document === "undefined") return;
+    document.cookie = `${TOKEN_COOKIE}=; max-age=0; path=/; SameSite=Strict`;
 }

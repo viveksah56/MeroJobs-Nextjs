@@ -1,34 +1,34 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import {memo, useId} from "react"
-import {cn} from "@/lib/utils"
-import {Input} from "@/components/ui/input"
-import {Textarea} from "@/components/ui/textarea"
-import {Field, FieldDescription, FieldLabel} from "@/components/ui/field"
+import { memo, useId } from "react";
+import type { ComponentProps, ElementType, SVGProps } from "react";
+import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 
 interface CommonProps {
-    label?: string
-    error?: string
-    icon?: React.ElementType<React.SVGProps<SVGSVGElement>>
-    required?: boolean
-    className?: string
-    helperText?: string
+    label?: string;
+    error?: string;
+    icon?: ElementType<SVGProps<SVGSVGElement>>;
+    required?: boolean;
+    className?: string;
+    helperText?: string;
 }
 
 interface InputFieldProps
-    extends Omit<React.ComponentProps<"input">, "id" | "className" | "required">,
+    extends Omit<ComponentProps<"input">, "id" | "className" | "required">,
         CommonProps {
-    textarea?: false
+    textarea?: false;
 }
 
 interface TextareaFieldProps
-    extends Omit<React.ComponentProps<"textarea">, "id" | "className" | "required">,
+    extends Omit<ComponentProps<"textarea">, "id" | "className" | "required">,
         CommonProps {
-    textarea: true
+    textarea: true;
 }
 
-type TextInputFieldProps = InputFieldProps | TextareaFieldProps
+export type TextInputFieldProps = InputFieldProps | TextareaFieldProps;
 
 const TextInputField = memo(function TextInputField({
                                                         label,
@@ -40,24 +40,36 @@ const TextInputField = memo(function TextInputField({
                                                         helperText,
                                                         ...props
                                                     }: TextInputFieldProps) {
-    const id = useId()
-    const errorId = `${id}-error`
-    const helperId = `${id}-helper`
+    const id = useId();
+    const errorId = `${id}-error`;
+    const helperId = `${id}-helper`;
 
-    const hasError = Boolean(error)
-    const hasHelper = Boolean(helperText)
+    const hasError = Boolean(error);
+    const hasHelper = Boolean(helperText);
 
     const describedBy =
-        [hasError && errorId, hasHelper && helperId]
-            .filter(Boolean)
-            .join(" ") || undefined
+        [hasError && errorId, hasHelper && helperId].filter(Boolean).join(" ") ||
+        undefined;
 
     const inputClassName = cn(
-        "w-full",
+        "w-full rounded-md border border-input bg-background text-foreground",
+        "text-sm placeholder:text-muted-foreground",
+        "transition-colors duration-150 ease-out",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "disabled:cursor-not-allowed disabled:opacity-50",
+        "px-3 sm:px-4",
         Icon && "pl-10",
         hasError && "border-destructive focus-visible:ring-destructive",
         className
-    )
+    );
+
+    const sharedFieldProps = {
+        id,
+        required,
+        "aria-invalid": hasError || undefined,
+        "aria-required": required,
+        "aria-describedby": describedBy,
+    } as const;
 
     return (
         <Field className="w-full space-y-1.5">
@@ -65,8 +77,9 @@ const TextInputField = memo(function TextInputField({
                 <FieldLabel
                     htmlFor={id}
                     className={cn(
-                        "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-                        hasError && "text-destructive"
+                        "block text-sm font-medium leading-none",
+                        "peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+                        hasError ? "text-destructive" : "text-foreground"
                     )}
                 >
                     {label}
@@ -82,34 +95,27 @@ const TextInputField = memo(function TextInputField({
                 {Icon && (
                     <span
                         className={cn(
-                            "pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground",
-                            hasError && "text-destructive"
+                            "pointer-events-none absolute left-3 top-1/2 -translate-y-1/2",
+                            "focus:ring-0 focus-visible:ring-0 active:ring-0",
+                            hasError ? "text-destructive" : "text-muted-foreground"
                         )}
                         aria-hidden="true"
                     >
-            <Icon className="h-4 w-4 shrink-0"/>
+            <Icon className="h-4 w-4 shrink-0" />
           </span>
                 )}
 
                 {textarea ? (
                     <Textarea
-                        id={id}
-                        required={required}
-                        aria-invalid={hasError || undefined}
-                        aria-required={required}
-                        aria-describedby={describedBy}
+                        {...sharedFieldProps}
                         className={cn(inputClassName, Icon && "pt-2")}
-                        {...(props as React.ComponentProps<"textarea">)}
+                        {...(props as ComponentProps<"textarea">)}
                     />
                 ) : (
                     <Input
-                        id={id}
-                        required={required}
-                        aria-invalid={hasError || undefined}
-                        aria-required={required}
-                        aria-describedby={describedBy}
+                        {...sharedFieldProps}
                         className={inputClassName}
-                        {...(props as React.ComponentProps<"input">)}
+                        {...(props as ComponentProps<"input">)}
                     />
                 )}
             </div>
@@ -134,10 +140,9 @@ const TextInputField = memo(function TextInputField({
                 </FieldDescription>
             )}
         </Field>
-    )
-})
+    );
+});
 
-TextInputField.displayName = "TextInputField"
+TextInputField.displayName = "TextInputField";
 
-export {TextInputField}
-export type {TextInputFieldProps}
+export { TextInputField };
