@@ -1,0 +1,356 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                   AXIOS INSTANCE USAGE - VISUAL GUIDE                         ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+WHERE TO USE AXIOS INSTANCE
+════════════════════════════════════════════════════════════════════════════════
+
+                             📱 COMPONENT LAYER
+                        (React Components - DO NOT USE API)
+                             ↓     ↓     ↓
+                      [LoginForm] [JobList] [UserCard]
+                             ↑     ↑     ↑
+                             └─────┬─────┘
+                                   │
+                                   │ Uses
+                                   ▼
+                        🪝 CUSTOM HOOKS LAYER
+                    (React Query - DO NOT USE API DIRECTLY)
+                      ↓         ↓         ↓
+                   [useAuth] [useJobs] [useUsers]
+                      ↑         ↑         ↑
+                      └─────────┬────────┘
+                                │
+                                │ Calls
+                                ▼
+                        📦 SERVICE LAYER
+                   (Business Logic - USE API HERE ✓)
+                        ↓     ↓     ↓
+                    [authService] [jobsService] [userService]
+                        ↑     ↑     ↑
+                        └─────┬─────┘
+                              │
+                              │ Uses
+                              ▼
+                     🌐 AXIOS INSTANCE ⭐
+                    (src/lib/api.ts - HERE!)
+                        • Base URL
+                        • Interceptors
+                        • Headers
+                        • Error Handling
+                              ↓
+                              │ Sends HTTP
+                              ▼
+                        🖥️ BACKEND API
+                   (Node/Express/Django)
+
+
+THE REQUEST JOURNEY
+════════════════════════════════════════════════════════════════════════════════
+
+User clicks button in Component
+        │
+        ├─→ onClick handler calls hook.login()
+        │
+        ├─→ Hook calls useMutation(→ authService.login())
+        │
+        ├─→ Service calls api.post('/auth/login', data)
+        │
+        ├─→ Axios Instance processes:
+        │       ✓ Adds baseURL: http://localhost:8000/api/v1
+        │       ✓ Adds headers: { 'Content-Type': 'application/json' }
+        │       ✓ Request interceptor runs
+        │       ✓ Sends POST request
+        │
+        ├─→ Backend receives request
+        │   POST /api/v1/auth/login
+        │   Body: { email, password }
+        │
+        ├─→ Backend sends response
+        │   { token: "...", user: {...} }
+        │
+        ├─→ Response interceptor checks status
+        │   ✓ If 401: redirect to /login
+        │   ✓ If error: return error
+        │   ✓ If 200: return data
+        │
+        ├─→ Service receives response.data
+        │
+        ├─→ Hook receives data, updates state
+        │
+        └─→ Component receives updated user state
+            UI re-renders with user data
+
+
+CODE LOCATION GUIDE
+════════════════════════════════════════════════════════════════════════════════
+
+What to do                  Where to put it            File location
+────────────────────────────────────────────────────────────────────────────
+Modify base URL             Axios instance             src/lib/api.ts ⭐
+Add request header          Axios interceptor          src/lib/api.ts
+Handle 401 errors           Response interceptor       src/lib/api.ts
+Add token to requests       Request interceptor        src/lib/api.ts
+────────────────────────────────────────────────────────────────────────────
+Define data types           TypeScript interface       src/lib/types/{feature}.ts
+────────────────────────────────────────────────────────────────────────────
+Make API call: GET          api.get()                  src/service/{feature}.service.ts ⭐
+Make API call: POST         api.post()                 src/service/{feature}.service.ts ⭐
+Make API call: PUT          api.put()                  src/service/{feature}.service.ts ⭐
+Make API call: DELETE       api.delete()               src/service/{feature}.service.ts ⭐
+────────────────────────────────────────────────────────────────────────────
+Wrap service in React Query useMutation, useQuery     src/hooks/use{Feature}.ts
+Manage loading state        mutation.isPending        src/hooks/use{Feature}.ts
+Handle errors               mutation.error            src/hooks/use{Feature}.ts
+────────────────────────────────────────────────────────────────────────────
+Display data                <div>{data}</div>          src/views/{Component}.tsx
+Handle user interaction     onClick={hook.method}      src/views/{Component}.tsx
+
+
+QUICK COPY-PASTE TEMPLATES
+════════════════════════════════════════════════════════════════════════════════
+
+1️⃣  CREATE SERVICE (PUT AXIOS CALLS HERE)
+─────────────────────────────────────────
+File: src/service/jobs.service.ts
+
+    import api from '@/lib/api';
+    import { Job } from '@/lib/types/job';
+
+    export const jobsService = {
+      getAll: async () => {
+        const response = await api.get<Job[]>('/jobs');
+        return response.data;
+      },
+
+      getById: async (id: string) => {
+        const response = await api.get<Job>(`/jobs/${id}`);
+        return response.data;
+      },
+
+      create: async (data: Omit<Job, 'id'>) => {
+        const response = await api.post<Job>('/jobs', data);
+        return response.data;
+      },
+
+      update: async (id: string, data: Partial<Job>) => {
+        const response = await api.put<Job>(`/jobs/${id}`, data);
+        return response.data;
+      },
+
+      delete: async (id: string) => {
+        await api.delete(`/jobs/${id}`);
+      },
+    };
+
+
+2️⃣  CREATE HOOK (WRAP SERVICE IN REACT QUERY)
+────────────────────────────────────────────
+File: src/hooks/useJobs.ts
+
+    'use client';
+
+    import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+    import { jobsService } from '@/service/jobs.service';
+
+    export const useJobs = () => {
+      const queryClient = useQueryClient();
+
+      const jobsQuery = useQuery({
+        queryKey: ['jobs'],
+        queryFn: () => jobsService.getAll(),
+      });
+
+      const createJobMutation = useMutation({
+        mutationFn: (data) => jobsService.create(data),
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        },
+      });
+
+      return {
+        jobs: jobsQuery.data,
+        isLoading: jobsQuery.isLoading,
+        createJob: createJobMutation.mutate,
+        isCreating: createJobMutation.isPending,
+      };
+    };
+
+
+3️⃣  USE HOOK IN COMPONENT
+────────────────────────
+File: src/app/jobs/page.tsx
+
+    'use client';
+
+    import { useJobs } from '@/hooks/useJobs';
+
+    export default function JobsPage() {
+      const { jobs, isLoading, createJob } = useJobs();
+
+      if (isLoading) return <p>Loading...</p>;
+
+      return (
+        <div>
+          <button onClick={() => createJob({ title: 'New Job' })}>
+            Add Job
+          </button>
+          <ul>
+            {jobs?.map((job) => (
+              <li key={job.id}>{job.title}</li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+
+
+AXIOS METHODS AT A GLANCE
+════════════════════════════════════════════════════════════════════════════════
+
+GET (Fetch data)
+    const response = await api.get<Type>('/endpoint');
+    const response = await api.get('/endpoint', { params: { id: 1 } });
+
+POST (Create data)
+    const response = await api.post<Type>('/endpoint', { name: 'value' });
+
+PUT (Full update)
+    const response = await api.put<Type>('/endpoint/1', { name: 'new' });
+
+PATCH (Partial update)
+    const response = await api.patch<Type>('/endpoint/1', { status: 'done' });
+
+DELETE (Remove data)
+    await api.delete('/endpoint/1');
+
+
+TYPICAL COMPLETE FLOW
+════════════════════════════════════════════════════════════════════════════════
+
+1. User submits form in JobsForm.tsx component
+   
+2. Component calls: createJob(formData)
+   
+3. Hook (useJobs) calls:
+   createJobMutation.mutate(formData)
+   
+4. Mutation calls:
+   jobsService.create(formData)
+   
+5. Service calls:
+   api.post('/jobs', formData)
+   
+6. Axios Instance does:
+   • Builds full URL: http://localhost:8000/api/v1/jobs
+   • Adds headers: { 'Content-Type': 'application/json' }
+   • Runs request interceptor
+   • Makes HTTP POST request
+   
+7. Backend receives request at:
+   POST http://localhost:8000/api/v1/jobs
+   
+8. Backend returns response:
+   { id: 1, title: 'Senior Dev', description: '...' }
+   
+9. Axios response interceptor processes:
+   • Checks status code
+   • If 401: logs out user, redirects to /login
+   • If success: returns response.data
+   
+10. Service receives data, returns it
+   
+11. Hook receives data:
+    • Calls onSuccess callback
+    • Invalidates 'jobs' query
+    • Component re-renders with new data
+    
+12. Component displays:
+    "Job created successfully!"
+    Shows updated jobs list
+
+
+DEBUGGING TIPS
+════════════════════════════════════════════════════════════════════════════════
+
+❌ NOT working? Check this order:
+
+1. Check Component → Does it have 'use client'?
+   
+2. Check Hook → Does it import from service?
+   
+3. Check Service → Does it use api.get/post/put/delete?
+   
+4. Check Axios → Is api imported from @/lib/api?
+   
+5. Check .env.local → Is NEXT_PUBLIC_API_URL set?
+   
+6. Check Backend → Is API running and endpoint exists?
+   
+7. Check Network → Open DevTools → Network tab → See request/response
+   
+8. Check Console → Look for error messages
+
+
+REMEMBER
+════════════════════════════════════════════════════════════════════════════════
+
+Component   → Hook        → Service      → Axios        → Backend
+(UI)          (Logic)       (API Calls)    (HTTP Client)  (Server)
+
+Never skip Service and Hook layers!
+
+✅ Good:      Component → useHook → Service → Axios
+❌ Bad:       Component → Axios (skipped service and hook!)
+
+
+KEY FILES TO KNOW
+════════════════════════════════════════════════════════════════════════════════
+
+src/lib/api.ts
+└─ The Axios instance - MODIFY HERE FOR GLOBAL SETTINGS
+   • Base URL configuration
+   • Request interceptors (add tokens, etc.)
+   • Response interceptors (handle 401, etc.)
+   • Default headers
+
+
+src/service/*.ts
+└─ API call methods - USE AXIOS HERE
+   • authService.login()
+   • jobsService.getAll()
+   • userService.create()
+
+
+src/hooks/use*.ts
+└─ React Query wrapper - WRAP SERVICE HERE
+   • useQuery() for GET requests
+   • useMutation() for POST/PUT/DELETE
+
+
+src/views/*.tsx
+└─ Components - USE HOOKS HERE
+   • Call hook functions
+   • Display loading states
+   • Show data
+
+
+💡 PRO TIP
+════════════════════════════════════════════════════════════════════════════════
+
+The Axios instance is like the "postal service" for your app:
+• You (Component) write a letter (request)
+• Postman (Hook) takes it to the post office (Service)
+• Post office (Service) prepares it with proper stamps and address
+• Postal truck (Axios) drives to destination
+• Recipient (Backend API) receives and responds
+• Response comes back through the same route
+• You get your answer!
+
+All the delivery logic (stamps, proper address, error handling) is
+handled by Axios in ONE place: src/lib/api.ts
+
+This way you don't repeat it everywhere!
+
+═══════════════════════════════════════════════════════════════════════════════════

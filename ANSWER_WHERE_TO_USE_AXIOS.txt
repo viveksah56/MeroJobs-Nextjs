@@ -1,0 +1,444 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    WHERE TO USE AXIOS.INSTANCE.TS
+═══════════════════════════════════════════════════════════════════════════════
+
+
+THE ANSWER (TL;DR)
+═══════════════════════════════════════════════════════════════════════════════
+
+Location:  src/lib/api.ts
+
+Use In:    src/service/{feature}.service.ts files
+
+Example:   
+    import api from '@/lib/api';
+    
+    export const jobsService = {
+      getAll: () => api.get('/jobs'),
+      create: (data) => api.post('/jobs', data),
+    };
+
+
+═══════════════════════════════════════════════════════════════════════════════
+COMPLETE EXPLANATION
+═══════════════════════════════════════════════════════════════════════════════
+
+
+1. WHAT IS AXIOS INSTANCE?
+   ─────────────────────────
+
+   It's a pre-configured Axios HTTP client at: src/lib/api.ts
+   
+   Configured with:
+   • Base URL: http://localhost:8000/api/v1
+   • Default headers
+   • Request interceptors (before sending)
+   • Response interceptors (after receiving)
+   • Error handling
+
+
+2. WHERE DOES IT LIVE?
+   ───────────────────
+
+   File: src/lib/api.ts
+   
+   This file contains the complete axios configuration
+   You don't need to change it - just use it!
+
+
+3. WHERE DO I USE IT?
+   ──────────────────
+
+   Use in SERVICE FILES ONLY:
+   
+   Location: src/service/{feature}.service.ts
+   
+   Examples:
+   • src/service/auth.service.ts ← uses api
+   • src/service/jobs.service.ts ← uses api
+   • src/service/users.service.ts ← uses api
+   
+   Pattern:
+   
+       import api from '@/lib/api';
+       
+       export const featureService = {
+         method1: () => api.get('/endpoint'),
+         method2: (data) => api.post('/endpoint', data),
+         method3: (id, data) => api.put(`/endpoint/${id}`, data),
+         method4: (id) => api.delete(`/endpoint/${id}`),
+       };
+
+
+4. THE ARCHITECTURE CHAIN
+   ──────────────────────
+
+   Component (React UI)
+       ↓ imports
+   Hook (useJobs, useAuth, etc.)
+       ↓ imports
+   Service (jobsService, authService, etc.)
+       ↓ imports & uses
+   Axios Instance (src/lib/api.ts) ← USE HERE!
+       ↓ sends HTTP request to
+   Backend API
+
+
+5. COMPLETE EXAMPLE
+   ────────────────
+
+   Step 1: Create Service
+   ──────────────────────
+   File: src/service/jobs.service.ts
+   
+       import api from '@/lib/api';  // ← Import axios instance
+       import { Job } from '@/lib/types/job';
+       
+       export const jobsService = {
+         // GET all jobs
+         getAll: async () => {
+           const response = await api.get<Job[]>('/jobs');
+           return response.data;
+         },
+         
+         // POST create job
+         create: async (data: Omit<Job, 'id'>) => {
+           const response = await api.post<Job>('/jobs', data);
+           return response.data;
+         },
+         
+         // PUT update job
+         update: async (id: string, data: Partial<Job>) => {
+           const response = await api.put<Job>(`/jobs/${id}`, data);
+           return response.data;
+         },
+         
+         // DELETE job
+         delete: async (id: string) => {
+           await api.delete(`/jobs/${id}`);
+         },
+       };
+   
+   
+   Step 2: Create Hook
+   ──────────────────
+   File: src/hooks/useJobs.ts
+   
+       'use client';
+       
+       import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+       import { jobsService } from '@/service/jobs.service';
+       
+       export const useJobs = () => {
+         const queryClient = useQueryClient();
+         
+         // GET request
+         const jobsQuery = useQuery({
+           queryKey: ['jobs'],
+           queryFn: () => jobsService.getAll(),
+         });
+         
+         // POST request
+         const createJobMutation = useMutation({
+           mutationFn: (data) => jobsService.create(data),
+           onSuccess: () => {
+             queryClient.invalidateQueries({ queryKey: ['jobs'] });
+           },
+         });
+         
+         return {
+           jobs: jobsQuery.data,
+           isLoading: jobsQuery.isLoading,
+           createJob: createJobMutation.mutate,
+         };
+       };
+   
+   
+   Step 3: Use in Component
+   ───────────────────────
+   File: src/app/jobs/page.tsx
+   
+       'use client';
+       
+       import { useJobs } from '@/hooks/useJobs';
+       
+       export default function JobsPage() {
+         const { jobs, isLoading, createJob } = useJobs();
+         
+         if (isLoading) return <p>Loading...</p>;
+         
+         return (
+           <div>
+             <button onClick={() => createJob({ title: 'New Job' })}>
+               Add Job
+             </button>
+             <ul>
+               {jobs?.map(job => (
+                 <li key={job.id}>{job.title}</li>
+               ))}
+             </ul>
+           </div>
+         );
+       }
+
+
+6. ALL AXIOS METHODS
+   ──────────────────
+
+   api.get(url)
+   └─ Fetch data
+   └─ api.get('/jobs')
+   
+   api.post(url, data)
+   └─ Create data
+   └─ api.post('/jobs', { title: 'New Job' })
+   
+   api.put(url, data)
+   └─ Full update
+   └─ api.put('/jobs/1', { title: 'Updated' })
+   
+   api.patch(url, data)
+   └─ Partial update
+   └─ api.patch('/jobs/1', { status: 'published' })
+   
+   api.delete(url)
+   └─ Delete data
+   └─ api.delete('/jobs/1')
+
+
+7. WITH QUERY PARAMETERS
+   ──────────────────────
+
+   Single parameter:
+   
+       api.get('/jobs', {
+         params: { page: 1 }
+       });
+       // URL: /jobs?page=1
+   
+   Multiple parameters:
+   
+       api.get('/jobs', {
+         params: { page: 1, limit: 10, search: 'senior' }
+       });
+       // URL: /jobs?page=1&limit=10&search=senior
+
+
+8. WHAT NOT TO DO
+   ───────────────
+
+   ❌ DON'T import api in components:
+   
+       // WRONG!
+       import api from '@/lib/api';
+       
+       export function Component() {
+         const handleClick = async () => {
+           const res = await api.get('/jobs');  // ❌
+         };
+       }
+   
+   
+   ❌ DON'T use api directly in hooks:
+   
+       // WRONG!
+       export const useJobs = () => {
+         return useQuery({
+           queryKey: ['jobs'],
+           queryFn: async () => {
+             return await api.get('/jobs');  // ❌
+           },
+         });
+       };
+   
+   
+   ✅ DO put api calls in services:
+   
+       // RIGHT!
+       export const jobsService = {
+         getAll: () => api.get('/jobs'),  // ✓
+       };
+
+
+9. ERROR HANDLING
+   ──────────────
+
+   In Service:
+   
+       export const jobsService = {
+         getAll: async () => {
+           try {
+             const response = await api.get<Job[]>('/jobs');
+             return response.data;
+           } catch (error) {
+             console.error('Failed to fetch jobs:', error);
+             throw error;
+           }
+         },
+       };
+   
+   In Hook:
+   
+       const jobsQuery = useQuery({
+         queryKey: ['jobs'],
+         queryFn: () => jobsService.getAll(),
+       });
+       
+       if (jobsQuery.error) {
+         return <div>Error: {jobsQuery.error.message}</div>;
+       }
+   
+   In Component:
+   
+       const { error } = useJobs();
+       
+       if (error) {
+         return <Alert variant="destructive">{error.message}</Alert>;
+       }
+
+
+10. ENVIRONMENT VARIABLES
+    ─────────────────────
+
+    File: .env.local
+    
+        NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+    
+    
+    Used in: src/lib/api.ts
+    
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+
+
+11. TYPESCRIPT TYPES
+    ────────────────
+
+    With type annotations:
+    
+        const response = await api.get<Job[]>('/jobs');
+        // response.data is typed as Job[]
+        
+        const response = await api.post<Job>('/jobs', data);
+        // response.data is typed as Job
+    
+    Define types in:
+    
+        src/lib/types/job.ts
+        export interface Job {
+          id: string;
+          title: string;
+          description: string;
+        }
+
+
+═══════════════════════════════════════════════════════════════════════════════
+QUICK CHECKLIST: ADDING A NEW FEATURE
+═══════════════════════════════════════════════════════════════════════════════
+
+☐ 1. Create type file
+    File: src/lib/types/{feature}.ts
+    Define: export interface FeatureName { ... }
+
+☐ 2. Create service file  ← USE AXIOS HERE!
+    File: src/service/{feature}.service.ts
+    Pattern: import api from '@/lib/api'
+             export const featureService = {
+               method: () => api.get('/endpoint'),
+             };
+
+☐ 3. Create hook
+    File: src/hooks/use{Feature}.ts
+    Pattern: import featureService
+             export const use{Feature} = () => {
+               return useQuery({
+                 queryFn: () => featureService.method(),
+               });
+             };
+
+☐ 4. Use hook in component
+    File: src/app/{feature}/page.tsx
+    Pattern: import use{Feature}
+             const { data } = use{Feature}();
+
+☐ 5. Test in browser
+
+
+═══════════════════════════════════════════════════════════════════════════════
+FILE LOCATIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+src/lib/api.ts
+├─ Axios instance
+├─ Configure once
+└─ Use in all services
+
+src/lib/types/{feature}.ts
+├─ TypeScript interfaces
+└─ Define data shapes
+
+src/service/{feature}.service.ts  ← IMPORT API HERE
+├─ API methods using axios
+├─ import api from '@/lib/api'
+└─ api.get(), api.post(), api.put(), api.delete()
+
+src/hooks/use{Feature}.ts
+├─ React Query wrappers
+└─ Wrap service methods
+
+src/views/ or src/app/{feature}
+├─ React components
+└─ Use hooks (not axios)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SUMMARY
+═══════════════════════════════════════════════════════════════════════════════
+
+Question: Where do I use axios.instance.ts?
+
+Answer: In src/service/{feature}.service.ts files
+
+    import api from '@/lib/api';
+    
+    export const featureService = {
+      getAll: () => api.get('/endpoint'),
+      create: (data) => api.post('/endpoint', data),
+      update: (id, data) => api.put(`/endpoint/${id}`, data),
+      delete: (id) => api.delete(`/endpoint/${id}`),
+    };
+
+Why: Separation of concerns
+• api.ts: HTTP configuration
+• service.ts: API calls
+• hooks: State management
+• components: UI only
+
+
+═══════════════════════════════════════════════════════════════════════════════
+DOCUMENTATION TO READ
+═══════════════════════════════════════════════════════════════════════════════
+
+1. AXIOS_WHERE_TO_USE.md (418 lines)
+   └─ Simple explanation with examples
+
+2. AXIOS_QUICK_REFERENCE.md (453 lines)
+   └─ Copy-paste templates for each layer
+
+3. AXIOS_USAGE_GUIDE.md (548 lines)
+   └─ Complete detailed guide
+
+4. AXIOS_VISUAL_GUIDE.txt (357 lines)
+   └─ Visual diagrams and flow
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+That's it! You now know exactly where to use axios.instance.ts.
+
+Location:    src/lib/api.ts
+Import in:   src/service/{feature}.service.ts
+Use:         api.get(), api.post(), api.put(), api.delete()
+
+Happy coding! 🚀
+
+═══════════════════════════════════════════════════════════════════════════════
